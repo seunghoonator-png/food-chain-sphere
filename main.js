@@ -52,6 +52,10 @@ const rules = {
     lifespanMax: 700,
     baseMetabolism: 0.06,
     speedCost: 0.037,
+    efficientSpeed: 1.18,
+    overSpeedCost: 1.35,
+    overSpeedWear: 1.7,
+    overSpeedRepro: 10,
     foodValue: 12.8,
     hungerSeek: 88,
     eatDistance: 0.036,
@@ -76,6 +80,10 @@ const rules = {
     lifespanMax: 920,
     baseMetabolism: 0.052,
     speedCost: 0.027,
+    efficientSpeed: 1.48,
+    overSpeedCost: 0.92,
+    overSpeedWear: 1.25,
+    overSpeedRepro: 8.2,
     foodValue: 52,
     hungerSeek: 145,
     eatDistance: 0.046,
@@ -411,7 +419,7 @@ function updateAnimals(animals, kind, dt) {
 
   for (let i = animals.length - 1; i >= 0; i -= 1) {
     const animal = animals[i];
-    animal.age += dt;
+    animal.age += dt * ageRate(animal, rule);
     animal.cooldown = Math.max(0, animal.cooldown - dt);
 
     const cost = energyCost(animal, rule) * densityStress;
@@ -427,7 +435,7 @@ function updateAnimals(animals, kind, dt) {
     }
 
     const desired = chooseDirection(animal, kind, rule);
-    steer(animal, desired, dt, isHerb ? 2.85 : 2.45);
+    steer(animal, desired, dt, isHerb ? 2.85 : 2.45, rule);
   }
 }
 
@@ -474,7 +482,7 @@ function chooseDirection(animal, kind, rule) {
   return desired;
 }
 
-function steer(animal, desired, dt, agility) {
+function steer(animal, desired, dt, agility, rule) {
   if (desired.lengthSq() > 0.000001) {
     desired.normalize();
     projectTangent(desired, animal.pos);
@@ -485,7 +493,7 @@ function steer(animal, desired, dt, agility) {
   rotateAroundNormal(animal.dir, animal.pos, animal.turnBias * 0.014 * dt);
   projectTangent(animal.dir, animal.pos);
 
-  animal.pos.addScaledVector(animal.dir, animal.speed * MOVE_SCALE * dt).normalize();
+  animal.pos.addScaledVector(animal.dir, effectiveSpeed(animal, rule) * MOVE_SCALE * dt).normalize();
   projectTangent(animal.dir, animal.pos);
 }
 
@@ -515,7 +523,7 @@ function carnEatHerbs(dt) {
     if (targetInfo.index === -1) continue;
 
     const prey = state.herbs[targetInfo.index];
-    const advantage = carn.speed - prey.speed;
+    const advantage = effectiveSpeed(carn, rules.carn) - effectiveSpeed(prey, rules.herb);
     const preyEnergyFactor = clamp((rules.herb.maxEnergy - prey.energy) / rules.herb.maxEnergy, 0, 0.32);
     const preyPerPredator = state.herbs.length / Math.max(1, state.carnivores.length);
     const lowCompetitionBonus = clamp((preyPerPredator - 3.5) / 16, 0, 0.22);
@@ -562,15 +570,16 @@ function reproduce(animals, kind, dt) {
       if (a.pos.dot(b.pos) < Math.cos(rule.mateDistance)) continue;
 
       const meanCost = (energyCost(a, rule) + energyCost(b, rule)) * 0.5;
-      const chance = dt * rule.reproBase * resourceFactor * (1 / (1 + meanCost * 4.1));
+      const speedDrag = (reproductionDrag(a, rule) + reproductionDrag(b, rule)) * 0.5;
+      const chance = dt * rule.reproBase * resourceFactor * (1 / (1 + meanCost * 5.4 + speedDrag));
       if (Math.random() > chance) break;
 
       const child = createOffspring(kind, a, b);
       animals.push(child);
-      a.energy -= rule.birthCost + meanCost * 7;
-      b.energy -= rule.birthCost + meanCost * 7;
-      a.cooldown = rule.cooldownBase + meanCost * rule.cooldownCost;
-      b.cooldown = rule.cooldownBase + meanCost * rule.cooldownCost;
+      a.energy -= rule.birthCost + meanCost * 8.5 + speedDrag * 4.5;
+      b.energy -= rule.birthCost + meanCost * 8.5 + speedDrag * 4.5;
+      a.cooldown = rule.cooldownBase + meanCost * rule.cooldownCost + speedDrag * 10;
+      b.cooldown = rule.cooldownBase + meanCost * rule.cooldownCost + speedDrag * 10;
       births += 1;
       if (kind === "herb") state.stats.herbBirths += 1;
       else state.stats.carnBirths += 1;
@@ -582,10 +591,11 @@ function reproduce(animals, kind, dt) {
 
 function isReady(animal, rule) {
   const cost = energyCost(animal, rule);
+  const speedDrag = reproductionDrag(animal, rule);
   return (
     animal.age >= rule.adultAge &&
     animal.cooldown <= 0 &&
-    animal.energy >= rule.birthEnergy + rule.birthCost + cost * 118
+    animal.energy >= rule.birthEnergy + rule.birthCost + cost * 135 + speedDrag * 18
   );
 }
 
@@ -658,7 +668,24 @@ function nearestReadyMate(animal, agents, rule) {
 }
 
 function energyCost(animal, rule) {
-  return rule.baseMetabolism + Math.pow(animal.speed, 2.55) * rule.speedCost;
+  const over = Math.max(0, animal.speed - rule.efficientSpeed);
+  return rule.baseMetabolism + Math.pow(animal.speed, 2.55) * rule.speedCost + Math.pow(over, 2.9) * rule.overSpeedCost;
+}
+
+function ageRate(animal, rule) {
+  const over = Math.max(0, animal.speed - rule.efficientSpeed);
+  return 1 + Math.pow(over, 2.05) * rule.overSpeedWear;
+}
+
+function reproductionDrag(animal, rule) {
+  const over = Math.max(0, animal.speed - rule.efficientSpeed);
+  return Math.pow(over, 2.05) * rule.overSpeedRepro;
+}
+
+function effectiveSpeed(animal, rule) {
+  const energyRatio = clamp(animal.energy / rule.maxEnergy, 0, 1);
+  const fatigue = clamp(0.5 + energyRatio * 0.58, 0.5, 1.02);
+  return animal.speed * fatigue;
 }
 
 function updateBursts(dt) {
