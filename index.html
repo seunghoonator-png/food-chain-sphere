@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>자기 유지 먹이사슬 시뮬레이션</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="world"></canvas>
+
+    <main class="hud panels-collapsed" aria-label="먹이사슬 시뮬레이션">
+      <section class="topbar" aria-label="상태">
+        <div class="brand">
+          <span class="planet-mark" aria-hidden="true"></span>
+          <div>
+            <h1>먹이사슬 구면장</h1>
+            <p id="clock">0일 00:00</p>
+          </div>
+        </div>
+        <div class="count-strip" aria-label="개체수">
+          <div class="count-pill plant"><span>식물</span><strong id="plantCount">0</strong></div>
+          <div class="count-pill herb"><span>초식</span><strong id="herbCount">0</strong></div>
+          <div class="count-pill carn"><span>육식</span><strong id="carnCount">0</strong></div>
+        </div>
+        <button id="uiToggle" class="panel-toggle" type="button" aria-expanded="false">패널 열기</button>
+      </section>
+
+      <section class="panel controls" aria-label="조절">
+        <div class="panel-title">
+          <h2>조절</h2>
+          <button id="pauseBtn" class="icon-button" type="button" aria-label="일시정지 또는 재생">Ⅱ</button>
+          <button id="resetBtn" class="icon-button" type="button" aria-label="초기화">↻</button>
+        </div>
+
+        <label class="slider-row">
+          <span>시간</span>
+          <input id="speedControl" type="range" min="0.2" max="4" step="0.1" value="1.4" />
+          <output id="speedValue">1.4x</output>
+        </label>
+        <label class="slider-row">
+          <span>식물 확산</span>
+          <input id="plantSpreadControl" type="range" min="0.35" max="2.2" step="0.05" value="1.0" />
+          <output id="plantSpreadValue">1.00</output>
+        </label>
+        <label class="slider-row">
+          <span>먹이 에너지</span>
+          <input id="foodEnergyControl" type="range" min="0.65" max="1.45" step="0.05" value="1.0" />
+          <output id="foodEnergyValue">1.00</output>
+        </label>
+        <label class="slider-row">
+          <span>포식 압력</span>
+          <input id="predationControl" type="range" min="0.55" max="1.4" step="0.05" value="0.78" />
+          <output id="predationValue">0.78</output>
+        </label>
+        <label class="slider-row">
+          <span>돌연변이 폭</span>
+          <input id="mutationControl" type="range" min="0.02" max="0.34" step="0.02" value="0.14" />
+          <output id="mutationValue">0.14</output>
+        </label>
+      </section>
+
+      <section class="panel charts count-chart" aria-label="절대 개체수 그래프">
+        <div class="panel-title">
+          <h2>절대 개체수</h2>
+          <span id="cycleState" class="status-tag">균형 관찰 중</span>
+        </div>
+        <canvas id="countChart" width="620" height="260"></canvas>
+      </section>
+
+      <section class="panel charts trait-chart" aria-label="속도 유전 분포 그래프">
+        <div class="panel-title">
+          <h2>속도 유전 분포</h2>
+          <span class="status-tag">개체 수</span>
+        </div>
+        <canvas id="traitChart" width="620" height="220"></canvas>
+      </section>
+
+      <section class="panel metrics" aria-label="진화 지표">
+        <div class="panel-title">
+          <h2>진화 지표</h2>
+          <span id="eventRate" class="status-tag">0 사건/분</span>
+        </div>
+        <div class="metric-grid">
+          <div><span>초식 평균 속도</span><strong id="herbSpeed">0.00</strong></div>
+          <div><span>육식 평균 속도</span><strong id="carnSpeed">0.00</strong></div>
+          <div><span>초식 에너지 소모</span><strong id="herbCost">0.00</strong></div>
+          <div><span>육식 에너지 소모</span><strong id="carnCost">0.00</strong></div>
+          <div><span>초식 출생</span><strong id="herbBirths">0</strong></div>
+          <div><span>육식 출생</span><strong id="carnBirths">0</strong></div>
+        </div>
+      </section>
+
+      <section class="legend" aria-label="범례">
+        <span class="legend-item plant">식물</span>
+        <span class="legend-item herb">초식동물</span>
+        <span class="legend-item carn">육식동물</span>
+        <span class="legend-item nutrient">사체 발아</span>
+      </section>
+    </main>
+
+    <script src="./vendor/three.global.js"></script>
+    <script src="./main.js"></script>
+  </body>
+</html>
